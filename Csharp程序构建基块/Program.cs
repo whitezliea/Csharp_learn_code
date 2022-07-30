@@ -19,12 +19,12 @@ namespace APP3
 
             #region 参数数组 params
             int x = 3, y = 4, z = 5;
-            string s = " x={0},y={1},z={2}. really?";
+            string s1 = " x={0},y={1},z={2}. really?";
             object[] args = new object[3];
             args[0] = x;
             args[1] = y;
             args[2] = z;
-            Console.WriteLine(s, args);
+            Console.WriteLine(s1, args);
             #endregion
 
             #region 静态实例与方法
@@ -51,6 +51,51 @@ namespace APP3
             vars["y"] = 9;
             Console.WriteLine("虚方法、重写方法和抽象方法 :" + e.Evaluate(vars));
 
+            #endregion
+
+            #region 方法重载
+            OverloadingExample.UsageExample();
+            #endregion
+
+            #region 其他函数成员: 构造函数、属性、索引器、事件、运算符和终结器
+            // 构造函数
+            MyList<string> list1 = new();
+            MyList<string> list2 = new(10);
+            
+            // 属性
+            MyList<string> list3 = new();
+            list3.Capacity = 100;
+            int l1 = list3.Count;
+            int l2 = list3.Capacity;
+
+            // 索引器
+            MyList<string> list4 = new();
+            list4.Add("test1");
+            list4.Add("test2");
+            list4.Add("tets3");
+            for (int i=0;i<list4.Count;i++)
+            {
+                string s2 = list4[i];
+                list4[i] = s2.ToUpper();
+                Console.WriteLine("索引器：" + s2 + " " + list4[i] ); 
+
+            }
+
+            // 事件管理
+            EventExample.Usage();
+
+            // 重载运算符
+            MyList<int> a = new();
+            a.Add(1);
+            a.Add(2);
+            MyList<int> b = new();
+            b.Add(1);
+            b.Add(2);
+            Console.Write("a == b ? => ");
+            Console.WriteLine(a == b);
+            b.Add(3);
+            Console.Write("a != b ? => ");
+            Console.WriteLine(a != b);
             #endregion
 
             Console.WriteLine("hello APP3!");
@@ -103,7 +148,6 @@ namespace APP3
 
     }
     #endregion
-
 
     #region 虚方法、重写方法和抽象方法
     // 抽象类
@@ -180,8 +224,142 @@ namespace APP3
     #region 方法重载
     class OverloadingExample
     {
+        static void F() => Console.WriteLine("F()");
+        static void F(object x) => Console.WriteLine("F(object)");
+        static void F(int x) => Console.WriteLine("F(int)");
+        static void F(double x) => Console.WriteLine("F(double)");
+        static void F<T>(T x) => Console.WriteLine($"F<T>(T), T is {typeof(T)}");
+        static void F(double x, double y)
+        {
+            Console.WriteLine("F(double,double"); 
+        }
+
+        public static void UsageExample()
+        {
+            F();
+            F(1);
+            F(1.0);
+            F("ABC");
+            F((double)1);
+            F((object)1);
+            F<int>(1);
+            F(1, 1);
+        }
 
     }
+
+
+    #endregion
+
+    #region 其他函数成员: 构造函数、属性、索引器、事件、运算符和终结器
+    public class MyList<T>
+    {
+        const int DefaultCapacity = 4;
+
+        T[] _items;
+        int _count;
+
+        public MyList(int capacity = DefaultCapacity)
+        {
+            _items = new T[capacity];
+        }
+        
+        //public int Count => _count;
+        public int Count
+        {
+            get { return _count; }
+        }
+
+        public int Capacity
+        {
+            // get 访问器读取该值。 set 访问器写入该值。
+            get => _items.Length;
+            set
+            {
+                if (value < _count)
+                    value = _count;
+                if (value != _items.Length)
+                {
+                    T[] newItems = new T[value];
+                    Array.Copy(_items, 0, newItems, 0, _count);    // array copy
+                    _items = newItems;
+                }
+            }
+        }
+
+        public T this[int index]
+        {
+            get => _items[index];
+            set
+            {
+                _items[index] = value;
+                OnChange();
+            }
+        }
+
+        public void Add(T item)
+        {
+            if (_count == Capacity)
+                Capacity = _count * 2;
+            _items[_count] = item;
+            _count++;
+            OnChange(); // Changed 事件成员，指明已向列表添加了新项
+        }
+
+        protected virtual void OnChange() => // 检查事件是否是Null（既不含任何处理程序）
+            Changed?.Invoke(this, EventArgs.Empty);
+
+        public override bool Equals(object other) =>
+            Equals(this, other as MyList<T>);
+
+
+        static bool Equals(MyList<T>a ,MyList<T>b)
+        {
+            if (Object.ReferenceEquals(a,null))
+                return Object.ReferenceEquals(b,null);
+            if (Object.ReferenceEquals(b,null) || a._count != b._count)
+                return false;
+            for (int i = 0; i < a._count; i++)
+            {
+                if (!object.Equals(a._items[i], b._items[i]))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public event EventHandler Changed;
+
+        public static bool operator ==(MyList<T> a, MyList<T> b) =>
+            Equals(a, b);
+
+        public static bool operator !=(MyList<T>a, MyList<T> b) =>
+            !Equals(a, b);
+
+    }
+
+    // 事件管理
+    class EventExample
+    {
+        static int s_ChangeCount;
+        static void ListChanged(object sender, EventArgs e)
+        {
+            s_ChangeCount++;
+        }
+
+        public static void Usage()
+        {
+            var list = new MyList<string>();
+            list.Changed += new EventHandler(ListChanged);
+            list.Add("Liz");
+            list.Add("Martha");
+            list.Add("Beth");
+            Console.WriteLine("事件的个数："+s_ChangeCount);
+        }
+    }
+
+    // 终结器 https://docs.microsoft.com/zh-cn/dotnet/csharp/programming-guide/classes-and-structs/finalizers
 
     #endregion
 
